@@ -69,13 +69,15 @@ void kmeans(pixel* image, int width, int height, int num_clusters) {
 
     // Assign each pixel in the image to its nearest cluster.
     for (int y = 0; y < height; y++) {
+        int yw = y * width;
         for (int x = 0; x < width; x++) {
             float min_dist = INFINITY;
             int best_cluster = -1;
+            int index = yw+x;
 
             // Compute the distance between the pixel and each cluster center.
             for (int c = 0; c < num_clusters; c++) {
-                float dist = distance(image[y * width + x], centers[c]);
+                float dist = distance(image[index], centers[c]);
 
                 if (dist < min_dist) {
                     min_dist = dist;
@@ -84,7 +86,7 @@ void kmeans(pixel* image, int width, int height, int num_clusters) {
             }
 
             // Assign the pixel to the best cluster.
-            assignments[y * width + x] = best_cluster;
+            assignments[index] = best_cluster;
         }
     }
 
@@ -92,12 +94,14 @@ void kmeans(pixel* image, int width, int height, int num_clusters) {
 
     // Compute the sum of the pixel values for each cluster.
     for (int y = 0; y < height; y++) {
+        int yw = y * width;
         for (int x = 0; x < width; x++) {
-            int cluster = assignments[y * width + x];
+            int index = yw+x;
+            int cluster = assignments[index];
             cluster_data[cluster].count++;
-            cluster_data[cluster].sum_r += image[y * width + x].r;
-            cluster_data[cluster].sum_g += image[y * width + x].g;
-            cluster_data[cluster].sum_b += image[y * width + x].b;
+            cluster_data[cluster].sum_r += image[index].r;
+            cluster_data[cluster].sum_g += image[index].g;
+            cluster_data[cluster].sum_b += image[index].b;
         }
     }
 
