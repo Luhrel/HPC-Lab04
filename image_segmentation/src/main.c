@@ -60,8 +60,9 @@ int save_image(char *filename, pixel *image, int width, int height, unsigned cha
     unsigned char output[3];
 
     for (int y = 0; y < height; ++y) {
+        int yw = y * width;
         for (int x = 0; x < width; ++x) {
-            int index = y * width + x;
+            int index = yw + x;
             output[2] = (unsigned char)image[index].r;
             output[1] = (unsigned char)image[index].g;
             output[0] = (unsigned char)image[index].b;
