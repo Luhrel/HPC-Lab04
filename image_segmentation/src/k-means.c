@@ -9,7 +9,7 @@ float distance(pixel p1, pixel p2){
     float r_diff = p1.r - p2.r;
     float g_diff = p1.g - p2.g;
     float b_diff = p1.b - p2.b;
-    return sqrt(r_diff * r_diff + g_diff * g_diff + b_diff * b_diff);
+    return r_diff * r_diff + g_diff * g_diff + b_diff * b_diff;
 }
 
 void kmeans_pp(pixel *image, int width, int height, int num_clusters, pixel *centers){
@@ -21,7 +21,7 @@ void kmeans_pp(pixel *image, int width, int height, int num_clusters, pixel *cen
 
     // Calculate the euclidean distance between each pixel and the first center randomly selected.
     for (int i = 0; i < width * height; i++) {
-        distances[i] = distance(image[i], centers[0]) * distance(image[i], centers[0]);
+        distances[i] = distance(image[i], centers[0]);
     }
 
     // Select the remaining centers using k-means++ algorithm.
@@ -45,7 +45,7 @@ void kmeans_pp(pixel *image, int width, int height, int num_clusters, pixel *cen
 
         // Update the distances array with the new center.
         for (int j = 0; j < width * height; j++) {
-            float dist = distance(image[j], centers[i]) * distance(image[j], centers[i]);
+            float dist = distance(image[j], centers[i]);
             if (dist < distances[j]) {
                 distances[j] = dist;
             }
