@@ -5,22 +5,23 @@
 
 // This function will calculate the euclidean distance between two pixels.
 // Instead of using coordinate we use the RGB value for evaluate distance.
-float distance(pixel p1, pixel p2){
+float distance(pixel p1, pixel p2) {
     float r_diff = p1.r - p2.r;
     float g_diff = p1.g - p2.g;
     float b_diff = p1.b - p2.b;
     return r_diff * r_diff + g_diff * g_diff + b_diff * b_diff;
 }
 
-void kmeans_pp(pixel *image, int width, int height, int num_clusters, pixel *centers){
+void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* centers) {
+    int size = width * height;
     // Randomly select the first center.
-    int first_center = rand() % (width * height);
+    int first_center = rand() % size;
     centers[0] = image[first_center];
 
-    float *distances = (float *)malloc(width * height * sizeof(float));
+    float* distances = (float*) malloc(size * sizeof(float));
 
     // Calculate the euclidean distance between each pixel and the first center randomly selected.
-    for (int i = 0; i < width * height; i++) {
+    for (int i = 0; i < size; i++) {
         distances[i] = distance(image[i], centers[0]);
     }
 
@@ -28,23 +29,23 @@ void kmeans_pp(pixel *image, int width, int height, int num_clusters, pixel *cen
     for (int i = 1; i < num_clusters; i++) {
         // Calculate the total weight of all distances.
         float total_weight = 0.0;
-        for (int j = 0; j < width * height; j++) {
+        for (int j = 0; j < size; j++) {
             total_weight += distances[j];
         }
 
         // Generate a random number in [0, total_weight) and use it to select a new center.
-        float r = ((float)rand() / (float)RAND_MAX) * total_weight;
+        float r = ((float) rand() / (float) RAND_MAX) * total_weight;
         int index = 0;
         while (r > distances[index]) {
             r -= distances[index];
             index++;
         }
-        
+
         //Assign new center.
         centers[i] = image[index];
 
         // Update the distances array with the new center.
-        for (int j = 0; j < width * height; j++) {
+        for (int j = 0; j < size; j++) {
             float dist = distance(image[j], centers[i]);
             if (dist < distances[j]) {
                 distances[j] = dist;
@@ -57,13 +58,14 @@ void kmeans_pp(pixel *image, int width, int height, int num_clusters, pixel *cen
 
 // This function performs k-means clustering on an image.
 // It takes as input the image, its dimensions (width and height), and the number of clusters to find.
-void kmeans(pixel *image, int width, int height, int num_clusters){
-    pixel *centers = (pixel *)malloc(num_clusters * sizeof(pixel));
+void kmeans(pixel* image, int width, int height, int num_clusters) {
+    pixel* centers = (pixel*) malloc(num_clusters * sizeof(pixel));
+    int size = width * height;
 
     // Initialize the cluster centers using the k-means++ algorithm.
     kmeans_pp(image, width, height, num_clusters, centers);
 
-    int *assignments = (int *)malloc(width * height * sizeof(int));
+    int* assignments = (int*) malloc(size * sizeof(int));
 
     // Assign each pixel in the image to its nearest cluster.
     for (int y = 0; y < height; y++) {
@@ -86,9 +88,9 @@ void kmeans(pixel *image, int width, int height, int num_clusters){
         }
     }
 
-    ClusterData *cluster_data = (ClusterData *)calloc(num_clusters, sizeof(ClusterData));
+    ClusterData* cluster_data = (ClusterData*) calloc(num_clusters, sizeof(ClusterData));
 
-     // Compute the sum of the pixel values for each cluster.
+    // Compute the sum of the pixel values for each cluster.
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int cluster = assignments[y * width + x];
@@ -109,9 +111,9 @@ void kmeans(pixel *image, int width, int height, int num_clusters){
     }
 
     free(cluster_data);
-    
+
     // Color all the pixels with the colors of their assigned cluster.
-    for (int i = 0; i < width * height; ++i){
+    for (int i = 0; i < size; ++i) {
         int cluster = assignments[i];
         image[i] = centers[cluster];
     }
