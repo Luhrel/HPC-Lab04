@@ -14,6 +14,37 @@ float distance(pixel p1, pixel p2) {
     return r_diff * r_diff + g_diff * g_diff + b_diff * b_diff;
 }
 
+// Vectorization of the following code :
+// ---
+// float distance(pixel p1, pixel p2) {
+//     float r_diff = p1.r - p2.r;
+//     float g_diff = p1.g - p2.g;
+//     float b_diff = p1.b - p2.b;
+//     return r_diff * r_diff + g_diff * g_diff + b_diff * b_diff;
+// }
+// ---
+__m128 compute_distance(__m128 p1_r, __m128 p1_g, __m128 p1_b, const pixel* p2, int it) {
+
+    // chargement des r, g et b en tant que float
+    __m128 c_r = _mm_cvtepi32_ps(_mm_set_epi32(p2[it].r, p2[it + 1].r, p2[it + 2].r, p2[it + 3].r));
+    __m128 c_g = _mm_cvtepi32_ps(_mm_set_epi32(p2[it].g, p2[it + 1].g, p2[it + 2].g, p2[it + 3].g));
+    __m128 c_b = _mm_cvtepi32_ps(_mm_set_epi32(p2[it].b, p2[it + 1].b, p2[it + 2].b, p2[it + 3].b));
+
+    // calcul de la différence
+    __m128 r_diff = _mm_sub_ps(p1_r, c_r);
+    __m128 g_diff = _mm_sub_ps(p1_g, c_g);
+    __m128 b_diff = _mm_sub_ps(p1_b, c_b);
+
+    // multiplication
+    c_r = _mm_mul_ps(r_diff, r_diff);
+    c_g = _mm_mul_ps(g_diff, g_diff);
+    c_b = _mm_mul_ps(b_diff, b_diff);
+
+    // Somme finale
+    __m128 sum = _mm_add_ps(c_r, c_g);
+    return _mm_add_ps(sum, c_b);
+}
+
 int find_best_cluster(const pixel image, const pixel* centers, int num_clusters) {
     float min = INFINITY;
     int idx = 0;
@@ -27,35 +58,15 @@ int find_best_cluster(const pixel image, const pixel* centers, int num_clusters)
     __m128 minvalues = _mm_set1_ps(min);
 
     const __m128 image_r = _mm_cvtepi32_ps(_mm_set1_epi32(image.r));
-
     const __m128 image_g = _mm_cvtepi32_ps(_mm_set1_epi32(image.g));
     const __m128 image_b = _mm_cvtepi32_ps(_mm_set1_epi32(image.b));
 
     for (int i = 0; i < N; i += 4) {
         // calcul de la distance
-
-        // chargement des r, g et b en tant que float
-        __m128 c_r = _mm_cvtepi32_ps(_mm_set_epi32(centers[i].r, centers[i + 1].r, centers[i + 2].r, centers[i + 3].r));
-        __m128 c_g = _mm_cvtepi32_ps(_mm_set_epi32(centers[i].g, centers[i + 1].g, centers[i + 2].g, centers[i + 3].g));
-        __m128 c_b = _mm_cvtepi32_ps(_mm_set_epi32(centers[i].b, centers[i + 1].b, centers[i + 2].b, centers[i + 3].b));
-
-        // calcul de la différence
-        __m128 r_diff = _mm_sub_ps(image_r, c_r);
-        __m128 g_diff = _mm_sub_ps(image_g, c_g);
-        __m128 b_diff = _mm_sub_ps(image_b, c_b);
-
-        // multiplication
-        c_r = _mm_mul_ps(r_diff, r_diff);
-        c_g = _mm_mul_ps(g_diff, g_diff);
-        c_b = _mm_mul_ps(b_diff, b_diff);
-
-        // Somme finale
-        __m128 sum = _mm_add_ps(c_r, c_g);
-        const __m128 values = _mm_add_ps(sum, c_b);
+        const __m128 values = compute_distance(image_r, image_g, image_b, centers, i);
 
         // recherche du minimum de chaque colonne
-
-        // on fait une comparaison int par int
+        // on fait une comparaison en colonne float par float
         const __m128i lt = (__m128i) _mm_cmplt_ps(values, minvalues);
 
         // récupération des minimums et des indices des minimums
@@ -92,6 +103,29 @@ int find_best_cluster(const pixel image, const pixel* centers, int num_clusters)
     }
     return idx;
 }
+// Vectorization of the following code :
+// ---
+// for (int i = 0; i < size; i++) {
+//     distances[i] = distance(image[i], centers[0]);
+// }
+// ---
+void compute_euclidean(float* distances, const pixel* image, int size, pixel center) {
+    int N = 4 * (size / 4); // pour avoir un multiple de 4
+
+    const __m128 center_r = _mm_cvtepi32_ps(_mm_set1_epi32(center.r));
+    const __m128 center_g = _mm_cvtepi32_ps(_mm_set1_epi32(center.g));
+    const __m128 center_b = _mm_cvtepi32_ps(_mm_set1_epi32(center.b));
+
+    for (int i = 0; i < N; i += 4) {
+        const __m128 values = compute_distance(center_r, center_g, center_b, image, i);
+        _mm_store_ps(&distances[i], values);
+    }
+
+    // Standard way
+    for (int i = N; i < size; ++i) {
+        distances[i] = distance(image[i], center);
+    }
+}
 
 void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* centers) {
     int size = width * height;
@@ -100,11 +134,13 @@ void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* cen
     centers[0] = image[first_center];
 
     float* distances = (float*) malloc(size * sizeof(float));
+    if (distances == NULL) {
+        return;
+    }
 
     // Calculate the euclidean distance between each pixel and the first center randomly selected.
-    for (int i = 0; i < size; i++) {
-        distances[i] = distance(image[i], centers[0]);
-    }
+    compute_euclidean(distances, image, size, centers[0]);
+
 
     // Select the remaining centers using k-means++ algorithm.
     for (int i = 1; i < num_clusters; i++) {
