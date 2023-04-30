@@ -23,7 +23,8 @@ float distance(pixel p1, pixel p2) {
 //     return r_diff * r_diff + g_diff * g_diff + b_diff * b_diff;
 // }
 // ---
-__m128 compute_distance(__m128 p1_r, __m128 p1_g, __m128 p1_b, const pixel* p2, int it) {
+__attribute((__always_inline__))
+inline __m128 compute_distance(__m128 p1_r, __m128 p1_g, __m128 p1_b, const pixel* p2, int it) {
 
     // chargement des r, g et b en tant que float
     __m128 c_r = _mm_cvtepi32_ps(_mm_set_epi32(p2[it].r, p2[it + 1].r, p2[it + 2].r, p2[it + 3].r));
@@ -127,6 +128,30 @@ void compute_euclidean(float* distances, const pixel* image, int size, pixel cen
     }
 }
 
+void update_distances(float* distances, const pixel* image, int size, const pixel center) {
+
+    int N = 4 * (size / 4); // pour avoir un multiple de 4
+
+    const __m128 center_r = _mm_cvtepi32_ps(_mm_set1_epi32(center.r));
+    const __m128 center_g = _mm_cvtepi32_ps(_mm_set1_epi32(center.g));
+    const __m128 center_b = _mm_cvtepi32_ps(_mm_set1_epi32(center.b));
+
+    for (int i = 0; i < N; i += 4) {
+        const __m128 values = compute_distance(center_r, center_g, center_b, image, i);
+        const __m128 initial_values = _mm_load_ps(&distances[i]);
+        const __m128 min = _mm_min_ps(values, initial_values);
+        // On stocke la valeur minimum dans la zone mémoire
+        _mm_store_ps(&distances[i], min);
+    }
+
+    for (int i = N; i < size; ++i) {
+        float dist = distance(image[i], center);
+        if (dist < distances[i]) {
+            distances[i] = dist;
+        }
+    }
+}
+
 void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* centers) {
     int size = width * height;
     // Randomly select the first center.
@@ -162,12 +187,7 @@ void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* cen
         centers[i] = image[index];
 
         // Update the distances array with the new center.
-        for (int j = 0; j < size; j++) {
-            float dist = distance(image[j], centers[i]);
-            if (dist < distances[j]) {
-                distances[j] = dist;
-            }
-        }
+        update_distances(distances, image, size, centers[i]);
     }
 
     free(distances);
