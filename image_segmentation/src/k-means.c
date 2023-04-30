@@ -133,7 +133,7 @@ void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* cen
     int first_center = rand() % size;
     centers[0] = image[first_center];
 
-    float* distances = (float*) malloc(size * sizeof(float));
+    float* distances = (float*) aligned_alloc(sizeof(float), size * sizeof(float));
     if (distances == NULL) {
         return;
     }
@@ -176,13 +176,16 @@ void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* cen
 // This function performs k-means clustering on an image.
 // It takes as input the image, its dimensions (width and height), and the number of clusters to find.
 void kmeans(pixel* image, int width, int height, int num_clusters) {
-    pixel* centers = (pixel*) malloc(num_clusters * sizeof(pixel));
+    pixel* centers = (pixel*) aligned_alloc(16, num_clusters * sizeof(pixel));
     int size = width * height;
 
     // Initialize the cluster centers using the k-means++ algorithm.
     kmeans_pp(image, width, height, num_clusters, centers);
 
-    int* assignments = (int*) malloc(size * sizeof(int));
+    int* assignments = (int*) aligned_alloc(sizeof(int), size * sizeof(int));
+    if (assignments == NULL) {
+        return;
+    }
 
     // Assign each pixel in the image to its nearest cluster.
     for (int y = 0; y < height; y++) {
