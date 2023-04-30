@@ -2,6 +2,8 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <immintrin.h>
+
 
 // This function will calculate the euclidean distance between two pixels.
 // Instead of using coordinate we use the RGB value for evaluate distance.
@@ -10,6 +12,85 @@ float distance(pixel p1, pixel p2) {
     float g_diff = p1.g - p2.g;
     float b_diff = p1.b - p2.b;
     return r_diff * r_diff + g_diff * g_diff + b_diff * b_diff;
+}
+
+int find_best_cluster(const pixel image, const pixel* centers, int num_clusters) {
+    float min = INFINITY;
+    int idx = 0;
+
+    int N = 4 * (num_clusters / 4); // pour avoir un multiple de 4
+
+    // Inspiré de : http://0x80.pl/notesen/2018-10-03-simd-index-of-min.html
+    const __m128i increment = _mm_set1_epi32(4);
+    __m128i indices = _mm_setr_epi32(0, 1, 2, 3);
+    __m128i minindices = indices;
+    __m128 minvalues = _mm_set1_ps(min);
+
+    const __m128 image_r = _mm_cvtepi32_ps(_mm_set1_epi32(image.r));
+
+    const __m128 image_g = _mm_cvtepi32_ps(_mm_set1_epi32(image.g));
+    const __m128 image_b = _mm_cvtepi32_ps(_mm_set1_epi32(image.b));
+
+    for (int i = 0; i < N; i += 4) {
+        // calcul de la distance
+
+        // chargement des r, g et b en tant que float
+        __m128 c_r = _mm_cvtepi32_ps(_mm_set_epi32(centers[i].r, centers[i + 1].r, centers[i + 2].r, centers[i + 3].r));
+        __m128 c_g = _mm_cvtepi32_ps(_mm_set_epi32(centers[i].g, centers[i + 1].g, centers[i + 2].g, centers[i + 3].g));
+        __m128 c_b = _mm_cvtepi32_ps(_mm_set_epi32(centers[i].b, centers[i + 1].b, centers[i + 2].b, centers[i + 3].b));
+
+        // calcul de la différence
+        __m128 r_diff = _mm_sub_ps(image_r, c_r);
+        __m128 g_diff = _mm_sub_ps(image_g, c_g);
+        __m128 b_diff = _mm_sub_ps(image_b, c_b);
+
+        // multiplication
+        c_r = _mm_mul_ps(r_diff, r_diff);
+        c_g = _mm_mul_ps(g_diff, g_diff);
+        c_b = _mm_mul_ps(b_diff, b_diff);
+
+        // Somme finale
+        __m128 sum = _mm_add_ps(c_r, c_g);
+        const __m128 values = _mm_add_ps(sum, c_b);
+
+        // recherche du minimum de chaque colonne
+
+        // on fait une comparaison int par int
+        const __m128i lt = (__m128i) _mm_cmplt_ps(values, minvalues);
+
+        // récupération des minimums et des indices des minimums
+        minindices = _mm_blendv_epi8(minindices, indices, lt);
+        minvalues = _mm_min_ps(values, minvalues);
+
+        // on incrémente les indices
+        indices = _mm_add_epi32(indices, increment);
+    }
+
+    // find min index in vector result (in an extremely naive way)
+    float values_array[4];
+    int indices_array[4];
+
+    _mm_store_ps(values_array, minvalues);
+    _mm_storeu_si128((__m128i*) indices_array, minindices);
+
+    idx = indices_array[0];
+    min = values_array[0];
+    for (int i = 1; i < 4; i++) {
+        if (values_array[i] < min) {
+            min = values_array[i];
+            idx = indices_array[i];
+        }
+    }
+
+    // Standard way
+    for (int i = N; i < num_clusters; ++i) {
+        float d = distance(image, centers[i]);
+        if (d < min) {
+            min = d;
+            idx = i;
+        }
+    }
+    return idx;
 }
 
 void kmeans_pp(pixel* image, int width, int height, int num_clusters, pixel* centers) {
@@ -71,19 +152,10 @@ void kmeans(pixel* image, int width, int height, int num_clusters) {
     for (int y = 0; y < height; y++) {
         int yw = y * width;
         for (int x = 0; x < width; x++) {
-            float min_dist = INFINITY;
-            int best_cluster = -1;
             int index = yw+x;
 
             // Compute the distance between the pixel and each cluster center.
-            for (int c = 0; c < num_clusters; c++) {
-                float dist = distance(image[index], centers[c]);
-
-                if (dist < min_dist) {
-                    min_dist = dist;
-                    best_cluster = c;
-                }
-            }
+            int best_cluster = find_best_cluster(image[index], centers, num_clusters);
 
             // Assign the pixel to the best cluster.
             assignments[index] = best_cluster;
