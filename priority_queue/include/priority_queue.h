@@ -12,7 +12,7 @@ typedef struct {
 priority_queue_t* priority_queue_create(int (*compare_priority)(const void*,
                                                                 const void*));
 
-void push(priority_queue_t* pq, void* data);
+int push(priority_queue_t* pq, void* data);
 
 void prioritize(priority_queue_t* pq);
 

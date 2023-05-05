@@ -3,9 +3,15 @@
 priority_queue_t* priority_queue_create(int (*compare_priority)(const void*,
                                                                 const void*)) {
   size_t size = 1024;
-  void** buf = (void**)malloc(size * sizeof(void*));
+  void** buf = malloc(size * sizeof(void*));
+  if (buf == NULL) {
+    return NULL;
+  }
 
   priority_queue_t* pq = malloc(sizeof(priority_queue_t));
+  if (pq == NULL) {
+    return NULL;
+  }
 
   pq->buf = buf;
   pq->size = 0;
@@ -14,16 +20,33 @@ priority_queue_t* priority_queue_create(int (*compare_priority)(const void*,
   return pq;
 }
 
-void push(priority_queue_t* pq, void* data) {
-  /* TODO */
+int push(priority_queue_t* pq, void* data) {
+  if (pq->size >= pq->capacity) {
+    size_t new_capacity = 1.5 * pq->capacity;
+    void** new_buf = realloc(pq->buf, new_capacity * sizeof(void*));
+    if (new_buf == NULL) {
+      return 1;
+    }
+    pq->buf = new_buf;
+    pq->capacity = new_capacity;
+  }
+
+  pq->buf[pq->size++] = data;
+  return 0;
 }
 
 void prioritize(priority_queue_t* pq) {
   /* TODO */
+
+  //
 }
 
 void* pop(priority_queue_t* pq) {
-  /* TODO */
+  if (pq->size == 0) {
+    return NULL;
+  }
+
+  return pq->buf[pq->size--];
 }
 
 void destroy(priority_queue_t* pq) {
@@ -31,4 +54,5 @@ void destroy(priority_queue_t* pq) {
     free(pq->buf[i]);
   }
   free(pq->buf);
+  free(pq);
 }
