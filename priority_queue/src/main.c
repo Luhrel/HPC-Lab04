@@ -25,17 +25,24 @@ typedef struct {
 node_t* get_nodes_from_map(int start_x, int start_y, int end_x, int end_y);
 
 int compare_node(const void* a, const void* b) {
-  /* Compare nodes */
-  return 0;
+  node_t* node_a = (node_t*)*((node_t**)a);
+  node_t* node_b = (node_t*)*((node_t**)b);
+  if (node_a->gCost == INT_MAX || node_b->gCost == INT_MAX) {
+    return node_b->gCost - node_a->gCost;
+  }
+  return node_b->fCost - node_a->fCost;
 }
 
-int main(int argc, char** argv) {
+int main() {
   priority_queue_t* priority_queue = priority_queue_create(&compare_node);
 
   node_t* nodes = get_nodes_from_map(1, 1, 9, 9);
 
   for (size_t i = 0; i < map_size_rows * map_size_cols; i++) {
-    push(priority_queue, &nodes[i]);
+    if (push(priority_queue, &nodes[i]) != 0) {
+      fprintf(stderr, "Unable to push element (%d, %d) gCost=%d\n", nodes[i].x,
+              nodes[i].y, nodes[i].gCost);
+    }
   }
 
   prioritize(priority_queue);
@@ -45,6 +52,8 @@ int main(int argc, char** argv) {
     printf("(%d, %d) gCost=%d hCost=%d fCost=%d walkable=%d\n", node->x,
            node->y, node->gCost, node->hCost, node->fCost, node->walkable);
   }
+
+  destroy(priority_queue);
 
   return 0;
 }

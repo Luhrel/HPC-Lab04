@@ -5,7 +5,6 @@ typedef struct {
   void** buf;
   size_t size;
   size_t capacity;
-  size_t nb_pushed;
   int (*cmp)(const void*, const void*);
 } priority_queue_t;
 
