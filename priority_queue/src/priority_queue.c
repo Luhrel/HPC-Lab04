@@ -49,9 +49,6 @@ void* pop(priority_queue_t* pq) {
 }
 
 void destroy(priority_queue_t* pq) {
-  for (size_t i = 0; i < pq->size; ++i) {
-    free(pq->buf[i]);
-  }
   free(pq->buf);
   free(pq);
 }
