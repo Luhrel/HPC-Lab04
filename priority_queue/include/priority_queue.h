@@ -8,6 +8,13 @@ typedef struct {
   int (*cmp)(const void*, const void*);
 } priority_queue_t;
 
+typedef struct {
+  int x, y;
+  int gCost, hCost, fCost;
+  int walkable;
+  int explored;
+} node_t;
+
 priority_queue_t* priority_queue_create(int (*compare_priority)(const void*,
                                                                 const void*));
 

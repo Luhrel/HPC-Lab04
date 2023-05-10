@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS= -O3 -std=c11 -Wall -Wextra -pedantic -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx -mavx2 -g -I../include
-DEBUGFLAGS= -std=c11 -Wall -Wextra -pedantic -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx -mavx2 -fsanitize=address -g -I../include
+DEBUGFLAGS= -std=c11 -Wall -Wextra -pedantic -msse -msse2 -msse3 -msse4.1 -msse4.2 -mavx -mavx2 -fsanitize=address -fsanitize=bounds-strict -g -I../include
 LDFLAGS= -lm
 
 SRC_C=$(wildcard *.c)
