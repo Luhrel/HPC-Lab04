@@ -3,8 +3,101 @@
 #include <emmintrin.h>
 #include <immintrin.h>
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <tmmintrin.h>
+
+#define DEBUG 1
+
+#if DEBUG
+
+void print128(char* label, __m128i var) {
+  int32_t val[4];
+  memcpy(val, &var, sizeof(val));
+  printf("%s: %x %x %x %x \n", label, val[0], val[1], val[2], val[3]);
+}
+
+void print256(char* label, __m256i var) {
+  node_t* val[4];
+  memcpy(val, &var, sizeof(val));
+
+  printf("%s : ", label);
+  for (int i = 0; i < 4; ++i) {
+    printf("%x ", val[i]->fCost);
+  }
+  printf("\n");
+}
+
+#endif
+
+void compare(__m128i* fCosts,
+             __m256i* addr,
+             __m128i fCostsA,
+             __m256i addrA,
+             __m128i fCostsB,
+             __m256i addrB) {
+  // On récupère le fCost minimum et les adresses correspondantes
+  __m128i mask_min128 = _mm_cmpgt_epi32(fCostsA, fCostsB);
+  __m256i mask_min256 = _mm256_cvtepi32_epi64(mask_min128);
+
+  // On récupère le fCost maximum et les adresses correspondantes
+  __m128i mask_max128 = _mm_xor_si128(mask_min128, _mm_set1_epi32(-1));
+  // extension du masque pour 256 bits
+  __m256i mask_max256 = _mm256_cvtepi32_epi64(mask_max128);
+
+  // récupération des fCosts et adresses minimum
+  __m128i min_fCosts = _mm_blendv_epi8(fCostsA, fCostsB, mask_min128);
+  __m256i min_addr = _mm256_blendv_epi8(addrA, addrB, mask_min256);
+
+  // récupération des fCosts et adresses maximum
+  __m128i max_fCosts = _mm_blendv_epi8(fCostsA, fCostsB, mask_max128);
+  __m256i max_addr = _mm256_blendv_epi8(addrA, addrB, mask_max256);
+
+  // return [min0, max0, min1, max1]
+  *fCosts = _mm_unpackhi_epi32(max_fCosts, min_fCosts);
+  // Pas le même comportement comme c'est des adresses.
+  (*addr)[3] = _mm256_extract_epi64(min_addr, 3);
+  (*addr)[2] = _mm256_extract_epi64(max_addr, 1);
+  (*addr)[1] = _mm256_extract_epi64(min_addr, 2);
+  (*addr)[0] = _mm256_extract_epi64(max_addr, 0);
+}
+
+void sse_merge_sort4x4(node_t** list, size_t size) {
+  for (size_t i = 0; i < size; i += 4) {
+    node_t** to_sort = list + i;
+
+    __m256i addr = _mm256_loadu_si256((__m256i*)to_sort);
+    __m128i fCosts = _mm_setr_epi32(to_sort[0]->fCost, to_sort[1]->fCost,
+                                    to_sort[2]->fCost, to_sort[3]->fCost);
+
+    // >>> 2
+    __m256i addr_shr = _mm256_permute4x64_epi64(addr, 0x4e);
+    __m128i fCosts_shr = _mm_alignr_epi8(fCosts, fCosts, 8);
+
+#if DEBUG
+    print128("start cost", fCosts);
+    print256("start addr", addr);
+#endif
+    compare(&fCosts, &addr, fCosts, addr, fCosts_shr, addr_shr);
+
+    // >>> 2
+    addr_shr = _mm256_permute4x64_epi64(addr, 0x4e);
+    fCosts_shr = _mm_alignr_epi8(fCosts, fCosts, 8);
+
+#if DEBUG
+    print128("middle cost", fCosts);
+    print256("middle addr", addr);
+#endif
+    compare(&fCosts, &addr, fCosts, addr, fCosts_shr, addr_shr);
+
+    _mm256_storeu_si256((__m256i*)to_sort, addr);
+#if DEBUG
+    print128("end cost", fCosts);
+    print256("end addr", addr);
+    printf("======== \n\n");
+#endif
+  }
+}
 
 node_t** merge(node_t** list, size_t l1, size_t r1, size_t l2, size_t r2) {
   node_t** tmp = malloc((r2 - l1 + 1) * sizeof(node_t*));
@@ -26,7 +119,11 @@ node_t** merge(node_t** list, size_t l1, size_t r1, size_t l2, size_t r2) {
 
 // https://www.baeldung.com/cs/non-recursive-merge-sort
 void merge_sort(node_t** list, size_t size) {
-  for (size_t len = 1; len < size; len *= 2) {
+  assert(size % 4 == 0 && size >= 4);
+
+  sse_merge_sort4x4(list, size);
+
+  for (size_t len = 4; len < size; len *= 2) {
     for (size_t i = 0; i < size; i += 2 * len) {
       size_t l1 = i;
       size_t l2 = i + len;
