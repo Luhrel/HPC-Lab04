@@ -1,9 +1,7 @@
 #include <limits.h>
-#include <stdlib.h>
-#include "priority_queue.h"
-
 #include <stdio.h>
 #include <stdlib.h>
+#include "priority_queue.h"
 
 #define map_size_rows 10
 #define map_size_cols 10
@@ -14,13 +12,6 @@ char map[map_size_rows][map_size_cols] = {
     {1, 0, 0, 1, 0, 0, 0, 1, 0, 1}, {1, 0, 0, 1, 0, 0, 0, 1, 0, 1},
     {1, 0, 0, 1, 1, 1, 1, 1, 0, 1}, {1, 0, 0, 0, 0, 0, 0, 0, 0, 1},
     {1, 0, 0, 0, 0, 0, 0, 0, 0, 1}, {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}};
-
-typedef struct {
-  int x, y;
-  int gCost, hCost, fCost;
-  int walkable;
-  int explored;
-} node_t;
 
 node_t* get_nodes_from_map(int start_x, int start_y, int end_x, int end_y);
 
