@@ -13,7 +13,7 @@ float distance(pixel p1, pixel p2) {
   return r_diff * r_diff + g_diff * g_diff + b_diff * b_diff;
 }
 
-// Vectorization of the following code :
+// Vectorisation du code suivant :
 // ---
 // float distance(pixel p1, pixel p2) {
 //     float r_diff = p1.r - p2.r;
@@ -50,6 +50,20 @@ __attribute((__always_inline__)) inline __m128 compute_distance(__m128 p1_r,
   return _mm_add_ps(sum, c_b);
 }
 
+// Vectorisation du code suivant :
+// ---
+// float min_dist = INFINITY;
+// int best_cluster = -1;
+// for (int c = 0; c < num_clusters; c++) {
+//  float dist = distance(image[index], centers[c]);
+//
+//  if (dist < min_dist) {
+//     min_dist = dist;
+//     best_cluster = c;
+//   }
+// }
+// return best_cluster;
+// ---
 int find_best_cluster(const pixel image,
                       const pixel* centers,
                       int num_clusters) {
@@ -113,7 +127,8 @@ int find_best_cluster(const pixel image,
   }
   return idx;
 }
-// Vectorization of the following code :
+
+// Vectorisation du code suivant :
 // ---
 // for (int i = 0; i < size; i++) {
 //     distances[i] = distance(image[i], centers[0]);
@@ -143,6 +158,15 @@ void compute_euclidean(float* distances,
   }
 }
 
+// Vectorisation du code suivant :
+// ---
+// for (int j = 0; j < size; j++) {
+//     float dist = distance(image[j], centers[i]);
+//     if (dist < distances[j]) {
+//         distances[j] = dist;
+//     }
+// }
+// ---
 void update_distances(float* distances,
                       const pixel* image,
                       int size,
